@@ -1,0 +1,19 @@
+import streamlit as st
+
+with st.form(key="post_form"):
+    title = st.text_input("제목을 입력하세요")
+    content = st.text_area("내용을 입력하세요", height=200)
+    submit_button = st.form_submit_button(label="게시글 등록")
+
+if submit_button:
+    if title.strip() and content.strip():
+        new_post = {
+            "title": title,
+            "content": content
+        }
+
+    st.session_state.posts.append(new_post)
+    st.success("게시글이 등록되었습니다.")
+    st.rerun() #화면 갱신
+else:
+    st.warning("제목과 내용을 모두 입력해주세요.")
