@@ -1,12 +1,3 @@
-📁내-프로젝트-폴더/
- ├── 📄app.py
- └── 📄post_form.py   <-- 같은 위치
-
-📄 `app.py` (메인 파일)
-
-python
-import streamlit as st
-
 # post_form.py 파일에서 render_post_form 함수를 가져옵니다.
 from post_form import render_post_form
 
