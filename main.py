@@ -1,6 +1,8 @@
 import hashlib
 import sqlite3
 from datetime import datetime
+from pathlib import Path
+from uuid import uuid4
 import pandas as pd
 import streamlit as st
 
@@ -21,6 +23,15 @@ CREATE TABLE IF NOT EXISTS posts (
 )
 """
 )
+
+# 기존 DB에도 사진 경로 컬럼을 추가
+c.execute("PRAGMA table_info(posts)")
+post_columns = {row[1] for row in c.fetchall()}
+if "image_path" not in post_columns:
+    c.execute("ALTER TABLE posts ADD COLUMN image_path TEXT")
+
+UPLOAD_DIR = Path("uploads")
+UPLOAD_DIR.mkdir(exist_ok=True)
 
 # 댓글 테이블
 c.execute(
@@ -108,7 +119,7 @@ if choice == "글 목록":
         if "read_post_id" in st.session_state:
             post_id = st.session_state["read_post_id"]
             c.execute(
-                "SELECT category, title, author, content, created_at FROM posts WHERE id=?",
+                "SELECT category, title, author, content, created_at, image_path FROM posts WHERE id=?",
                 (post_id,),
             )
             post = c.fetchone()
@@ -118,6 +129,10 @@ if choice == "글 목록":
                 st.markdown(f"### [{post[0]}] {post[1]}")
                 st.caption(f"작성자: **{post[2]}** | 작성일: {post[4]}")
                 st.write(post[3])
+                if post[5]:
+                    image_file = Path(post[5])
+                    if image_file.exists():
+                        st.image(str(image_file), caption="첨부 사진", use_container_width=True)
 
                 # 관리자 전용 권한 영역 (삭제/수정)
                 if st.session_state["is_admin"]:
@@ -128,6 +143,10 @@ if choice == "글 목록":
                     # 관리자 글 삭제
                     with col1:
                         if st.button("🗑️ 글 삭제하기", key=f"del_{post_id}"):
+                            if post[5]:
+                                image_file = Path(post[5])
+                                if image_file.exists():
+                                    image_file.unlink()
                             c.execute(
                                 "DELETE FROM posts WHERE id=?", (post_id,)
                             )
@@ -205,14 +224,30 @@ elif choice == "글 작성하기":
         author = st.text_input("작성자 닉네임", value="익명")
         title = st.text_input("제목")
         content = st.text_area("내용", height=200)
+        uploaded_image = st.file_uploader(
+            "사진 첨부 (선택)",
+            type=["jpg", "jpeg", "png", "gif", "webp"],
+            help="최대 5MB까지 업로드할 수 있습니다.",
+        )
         submitted = st.form_submit_button("게시글 등록")
 
         if submitted:
             if title and content:
+                image_path = None
+                if uploaded_image:
+                    image_data = uploaded_image.getvalue()
+                    if len(image_data) > 5 * 1024 * 1024:
+                        st.error("사진은 5MB 이하만 업로드할 수 있습니다.")
+                        st.stop()
+
+                    safe_filename = Path(uploaded_image.name).name
+                    image_path = str(UPLOAD_DIR / f"{uuid4().hex}_{safe_filename}")
+                    Path(image_path).write_bytes(image_data)
+
                 now = datetime.now().strftime("%Y-%m-%d %H:%M")
                 c.execute(
-                    "INSERT INTO posts (category, title, author, content, created_at) VALUES (?, ?, ?, ?, ?)",
-                    (category, title, author, content, now),
+                    "INSERT INTO posts (category, title, author, content, created_at, image_path) VALUES (?, ?, ?, ?, ?, ?)",
+                    (category, title, author, content, now, image_path),
                 )
                 conn.commit()
                 st.success("게시글이 성공적으로 등록되었습니다!")
