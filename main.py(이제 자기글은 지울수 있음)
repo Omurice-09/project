@@ -7,6 +7,7 @@ from pathlib import Path
 from uuid import uuid4
 import pandas as pd
 import streamlit as st
+from 로그인 import show_login_page
 
 # DB 연결 및 테이블 생성
 conn = sqlite3.connect("school_community_v4.db", check_same_thread=False)
@@ -286,3 +287,5 @@ elif choice == "글 작성하기":
                 st.warning("수정·삭제 비밀번호는 8자 이상 입력해주세요.")
             else:
                 st.warning("수정·삭제 비밀번호, 제목, 내용을 모두 입력해주세요.")
+# 로그인 기능 실행
+show_login_page()
